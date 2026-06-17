@@ -11,10 +11,10 @@ module.exports = {
     maxSpreadPct: 0.80
   },
   thresholds: {
-    watch: 0.490,
-    ready: 0.550,
-    execute: 0.550,
-    minConfidence: 0.500
+    watch: 0.420,
+    ready: 0.460,
+    execute: 0.470,
+    minConfidence: 0.420
   },
   risk: {
     maxTradesPerSession: 3,
