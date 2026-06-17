@@ -7,11 +7,14 @@ Incluye:
 - analisis de estructura de mercado,
 - confluencia multi-timeframe,
 - sesgo por sesion,
+- filtro de noticias,
+- journal de operaciones,
 - IA adaptativa,
 - capa opcional de revision con OpenAI,
 - gestion de riesgo,
 - paper trading,
 - backtesting,
+- walk-forward testing,
 - exportacion de senales para MT5.
 
 No depende de TOCHI Legal Suite.
@@ -22,6 +25,7 @@ No depende de TOCHI Legal Suite.
 npm install
 npm run typecheck
 npm run backtest
+npm run walkforward
 npm run analyze
 ```
 
@@ -34,6 +38,11 @@ Genera una lectura de mercado y, si hay setup, escribe la senal para MT5 en:
 Si `APPDATA` no existe, usa `state/mt5-signal.json`.
 
 Si defines `OPENAI_API_KEY` en `.env`, `analyze` envia la propuesta a OpenAI como capa de revision. La respuesta ajusta suavemente la confianza y queda guardada en la senal como `openaiReview`.
+
+Noticias y journal:
+
+- `state/news.json` o `%APPDATA%/MetaQuotes/Terminal/Common/Files/TradingBotAI/news.json`
+- `state/journal.jsonl`
 
 Variables utiles:
 

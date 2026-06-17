@@ -275,3 +275,7 @@ export function createSignalPackage(
     timeframeNotes,
   };
 }
+
+export function cloneModelState(state: ModelState): ModelState {
+  return JSON.parse(JSON.stringify(state)) as ModelState;
+}

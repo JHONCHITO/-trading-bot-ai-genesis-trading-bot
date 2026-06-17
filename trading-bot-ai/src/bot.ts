@@ -10,7 +10,8 @@ export class RiskManager {
     signal: Signal,
     context: MarketContext,
     state: PortfolioState,
-    riskMultiplier: number
+    riskMultiplier: number,
+    gates?: { newsBlocked?: boolean; newsReasons?: string[] },
   ): { allowed: boolean; reasons: string[]; plan?: PositionPlan } {
     if (state.halted) return { allowed: false, reasons: ["Trading halted"] };
     if (state.openPositions >= this.config.maxOpenPositions) {
@@ -18,6 +19,13 @@ export class RiskManager {
     }
     if (state.cooldownBars > 0) {
       return { allowed: false, reasons: [`Cooldown ${state.cooldownBars} bars`] };
+    }
+
+    if (gates?.newsBlocked) {
+      return {
+        allowed: false,
+        reasons: ["News blackout", ...(gates.newsReasons ?? [])],
+      };
     }
 
     const mid = (context.book.bestBid + context.book.bestAsk) / 2;
@@ -126,7 +134,11 @@ export class TradingBot {
     private readonly broker: PaperBroker,
   ) {}
 
-  evaluate(context: MarketContext, state: PortfolioState): BotDecision {
+  evaluate(
+    context: MarketContext,
+    state: PortfolioState,
+    gates?: { newsBlocked?: boolean; newsReasons?: string[] },
+  ): BotDecision {
     const buy = scoreDirection(
       "buy",
       context,
@@ -164,7 +176,8 @@ export class TradingBot {
       chosen.signal,
       context,
       state,
-      this.coach.getState().riskMultiplier
+      this.coach.getState().riskMultiplier,
+      gates,
     );
 
     if (!assessment.allowed || !assessment.plan) {

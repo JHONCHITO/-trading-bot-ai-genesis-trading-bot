@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { AdaptiveCoach, loadModelState } from "./ai";
 import { TradingBot, RiskManager, PaperBroker } from "./bot";
 import { DEFAULT_CONFIG, createInitialModelState } from "./config";
+import { loadNewsState, evaluateNewsState } from "./news";
+import { recordDecisionJournal } from "./journal";
 import { readMt5MarketFile, readMt5SignalFile, writeMt5SignalFile } from "./mt5";
 import {
   BotDecision,
@@ -21,6 +23,10 @@ const MT5_MARKET_PATH =
 
 const MT5_SIGNAL_PATH =
   "C:/Users/Jjtoc/AppData/Roaming/MetaQuotes/Terminal/Common/Files/TradingBotAI/signal.json";
+
+const NEWS_FILE_PATH = process.env.APPDATA?.trim()
+  ? join(process.env.APPDATA.trim(), "MetaQuotes", "Terminal", "Common", "Files", "TradingBotAI", "news.json")
+  : "./state/news.json";
 
 // Estado local del bot
 const BOT_RUNTIME_STATE_PATH = "./state/runtime-state.json";
@@ -173,9 +179,21 @@ async function run(): Promise<void> {
         return;
       }
 
-      const decision = bot.evaluate(context, portfolio);
+      const news = await loadNewsState(NEWS_FILE_PATH);
+      const newsCheck = evaluateNewsState(news, context.symbol, Math.floor(context.timestamp / 1000));
+      const decision = bot.evaluate(
+        context,
+        portfolio,
+        newsCheck.blocked ? { newsBlocked: true, newsReasons: newsCheck.reasons } : undefined,
+      );
       const nextSignal = decisionToSignalPackage(decision, context);
       const currentSignal = await readMt5SignalFile(MT5_SIGNAL_PATH);
+
+      await recordDecisionJournal(config.journalPath, context.symbol, decision.action, {
+        reasons: decision.reasons,
+        blockedByNews: newsCheck.blocked,
+        newsReasons: newsCheck.reasons,
+      });
 
       if (nextSignal && !isSameSignal(currentSignal, nextSignal)) {
         await writeMt5SignalFile(MT5_SIGNAL_PATH, nextSignal);
@@ -184,6 +202,9 @@ async function run(): Promise<void> {
         );
       } else {
         console.log(`[BOT] ${decision.action} :: ${decision.reasons.join(" | ")}`);
+        if (newsCheck.blocked) {
+          console.log(`[NEWS] ${newsCheck.reasons.join(" | ")}`);
+        }
       }
 
       runtimeState.lastProcessedGeneratedAt = snapshot.generatedAt;

@@ -6,6 +6,7 @@ Este EA actua como puente profesional entre el motor Node.js y MetaTrader 5.
 
 - lee `TradingBotAI\\signal.json` desde `FILE_COMMON`
 - valida confianza, confluencia, vigencia y riesgo
+- respeta filtro de noticias si existe `news.json`
 - ejecuta ordenes de mercado
 - gestiona posiciones abiertas con:
   - break-even
@@ -19,6 +20,7 @@ Este EA actua como puente profesional entre el motor Node.js y MetaTrader 5.
 - `TradingBotBridgeEA.mq5`
 - `TradingBotAI\\signal.json`
 - `TradingBotAI\\market.json`
+- `TradingBotAI\\news.json`
 - `TradingBotAI\\state.json`
 - `TradingBotAI\\journal.jsonl`
 

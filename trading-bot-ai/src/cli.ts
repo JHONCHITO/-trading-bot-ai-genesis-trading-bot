@@ -13,8 +13,11 @@ import { buildMarketContext, scoreDirection } from "./market";
 import { readMt5MarketFile, writeMt5SignalFile } from "./mt5";
 import { blendOpenAIConfidence, reviewSignalWithOpenAI } from "./openai";
 import { Candle, MarketContext } from "./types";
+import { loadNewsState, evaluateNewsState } from "./news";
+import { recordDecisionJournal } from "./journal";
+import { runWalkForward } from "./backtest";
 
-type Mode = "backtest" | "paper" | "analyze" | "auto" | "account" | "test-order";
+type Mode = "backtest" | "walkforward" | "paper" | "analyze" | "auto" | "account" | "test-order";
 type Exchange = "synthetic" | "binance";
 
 interface CliOptions {
@@ -50,6 +53,16 @@ function getDefaultMt5MarketFile(): string {
   return join(process.cwd(), "state", "mt5-market.json");
 }
 
+function getDefaultMt5NewsFile(): string {
+  const appData = process.env.APPDATA?.trim();
+
+  if (appData) {
+    return join(appData, "MetaQuotes", "Terminal", "Common", "Files", "TradingBotAI", "news.json");
+  }
+
+  return join(process.cwd(), "state", "news.json");
+}
+
 function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     mode: "backtest",
@@ -62,11 +75,12 @@ function parseArgs(argv: string[]): CliOptions {
     resume: false,
     signalFile: getDefaultMt5SignalFile(),
     marketFile: getDefaultMt5MarketFile(),
+    // the bot can still consume a local news file if APPDATA is unavailable
   };
   for (const arg of argv) {
     const [key, value] = arg.split("=");
     if (!key || !value) continue;
-    if (key === "--mode" && (value === "backtest" || value === "paper" || value === "analyze" || value === "auto" || value === "account" || value === "test-order")) options.mode = value;
+    if (key === "--mode" && (value === "backtest" || value === "walkforward" || value === "paper" || value === "analyze" || value === "auto" || value === "account" || value === "test-order")) options.mode = value;
     if (key === "--exchange" && (value === "synthetic" || value === "binance")) options.exchange = value;
     if (key === "--bars") options.bars = Math.max(60, Number(value) || options.bars);
     if (key === "--capital") options.capital = Math.max(1000, Number(value) || options.capital);
@@ -87,6 +101,7 @@ function buildConfig(capital: number, symbol: string) {
     symbol,
     modelPath: DEFAULT_CONFIG.modelPath,
     journalPath: DEFAULT_CONFIG.journalPath,
+    newsPath: getDefaultMt5NewsFile(),
   };
 }
 
@@ -192,16 +207,32 @@ function printStructureReport(context: MarketContext) {
 async function runAnalyzeOnce(options: CliOptions, bot: TradingBot, config: ReturnType<typeof buildConfig>): Promise<boolean> {
   const candles = await loadMarketCandles(options);
   const context: MarketContext = buildMarketContext(options.symbol || config.symbol, candles);
+  const news = await loadNewsState(config.newsPath);
+  const newsCheck = evaluateNewsState(news, context.symbol, Math.floor(context.timestamp / 1000));
 
   if (options.exchange === "binance") {
     console.log(`Exchange: Binance (${process.env.BINANCE_BASE_URL || "https://testnet.binance.vision/api"})`);
   }
 
   printStructureReport(context);
-  const decision = bot.evaluate(context, { equity: config.initialCapital, peakEquity: config.initialCapital, sessionPnl: 0, cooldownBars: 0, openPositions: 0, halted: false });
+  if (newsCheck.blocked) {
+    console.log(`=== News filter ===`);
+    console.log(newsCheck.reasons.join(" | "));
+  }
+
+  const decision = bot.evaluate(
+    context,
+    { equity: config.initialCapital, peakEquity: config.initialCapital, sessionPnl: 0, cooldownBars: 0, openPositions: 0, halted: false },
+    newsCheck.blocked ? { newsBlocked: true, newsReasons: newsCheck.reasons } : undefined,
+  );
   console.log("=== Trade decision ===");
   console.log(decision.action.toUpperCase());
   decision.reasons.forEach((reason) => console.log(reason));
+  await recordDecisionJournal(config.journalPath, context.symbol, decision.action, {
+    reasons: decision.reasons,
+    blockedByNews: newsCheck.blocked,
+    newsReasons: newsCheck.reasons,
+  });
   if (!decision.signal) {
     console.log("No signal written.");
     return false;
@@ -315,6 +346,38 @@ async function main() {
       }
       await new Promise((resolve) => setTimeout(resolve, options.intervalMs));
     }
+  }
+
+  if (options.mode === "walkforward") {
+    const candles = await loadMarketCandles(options);
+    const report = await runWalkForward(config, bot.getModelState(), candles, 4);
+    console.log("=== Walk-forward report ===");
+    console.table({
+      folds: report.folds.length,
+      totalTrades: report.totalTrades,
+      averageWinRate: `${(report.averageWinRate * 100).toFixed(2)}%`,
+      averageProfitFactor: Number.isFinite(report.averageProfitFactor)
+        ? report.averageProfitFactor.toFixed(2)
+        : "Infinity",
+      averageSharpeLike: report.averageSharpeLike.toFixed(2),
+      worstDrawdown: `${(report.worstDrawdownPct * 100).toFixed(2)}%`,
+      finalEquity: report.finalEquity.toFixed(2),
+      netPnL: report.netPnL.toFixed(2),
+    });
+    if (report.folds.length) {
+      console.log("Fold details:");
+      console.table(report.folds.map((fold) => ({
+        fold: fold.fold,
+        trainBars: fold.trainBars,
+        testBars: fold.testBars,
+        trainWinRate: `${(fold.trainWinRate * 100).toFixed(2)}%`,
+        testWinRate: `${(fold.testWinRate * 100).toFixed(2)}%`,
+        testProfitFactor: Number.isFinite(fold.testProfitFactor) ? fold.testProfitFactor.toFixed(2) : "Infinity",
+        testSharpeLike: fold.testSharpeLike.toFixed(2),
+        maxDrawdown: `${(fold.maxDrawdownPct * 100).toFixed(2)}%`,
+      })));
+    }
+    return;
   }
 
   if (options.mode === "test-order") {

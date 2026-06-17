@@ -13,6 +13,8 @@ export const DEFAULT_CONFIG: BotConfig = {
   maxSpreadPct: 0.008,
   maxDailyLossPct: 0.02,
   maxDrawdownPct: 0.10,
+  sessionStartHour: 0,
+  sessionEndHour: 23,
 
   atrLookback: 14,
   cooldownBarsAfterLoss: 3,
@@ -24,6 +26,7 @@ export const DEFAULT_CONFIG: BotConfig = {
   stopAtrMultiple: 1.5,
   targetAtrMultiple: 2.0,
 
+  newsPath: "./state/news.json",
   journalPath: "./state/journal.jsonl",
   modelPath: "./state/model.json"
 };

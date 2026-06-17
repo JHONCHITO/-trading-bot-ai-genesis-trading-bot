@@ -83,6 +83,28 @@ export interface StructureSnapshot {
   notes: string[];
 }
 
+export type NewsSeverity = "low" | "medium" | "high" | "critical";
+
+export interface NewsEvent {
+  title: string;
+  timestamp: number;
+  currency?: string;
+  symbols?: string[];
+  severity: NewsSeverity;
+  beforeMinutes: number;
+  afterMinutes: number;
+  blocked: boolean;
+  source?: string;
+}
+
+export interface NewsState {
+  source: string;
+  updatedAt: string;
+  blocked: boolean;
+  blackoutUntil?: number;
+  events: NewsEvent[];
+}
+
 export interface Signal {
   symbol: string;
   side: "buy" | "sell";
@@ -142,6 +164,43 @@ export interface TradeRecord {
   modelScore: number;
 }
 
+export interface JournalEntry {
+  ts: number;
+  type: "trade" | "decision" | "risk" | "news" | "system" | "error";
+  symbol?: string;
+  message: string;
+  payload?: unknown;
+}
+
+export interface BacktestFoldReport {
+  fold: number;
+  trainBars: number;
+  testBars: number;
+  trainEquity: number;
+  testEquity: number;
+  trainNetPnL: number;
+  testNetPnL: number;
+  trainTrades: number;
+  testTrades: number;
+  trainWinRate: number;
+  testWinRate: number;
+  trainProfitFactor: number;
+  testProfitFactor: number;
+  testSharpeLike: number;
+  maxDrawdownPct: number;
+}
+
+export interface WalkForwardReport {
+  folds: BacktestFoldReport[];
+  totalTrades: number;
+  averageWinRate: number;
+  averageProfitFactor: number;
+  averageSharpeLike: number;
+  worstDrawdownPct: number;
+  finalEquity: number;
+  netPnL: number;
+}
+
 export interface Position {
   plan: PositionPlan;
   entryFill: {
@@ -189,6 +248,8 @@ export interface BotConfig {
   maxSpreadPct: number;
   maxDailyLossPct: number;
   maxDrawdownPct: number;
+  sessionStartHour: number;
+  sessionEndHour: number;
   atrLookback: number;
   trendFast: number;
   trendSlow: number;
@@ -196,6 +257,7 @@ export interface BotConfig {
   stopAtrMultiple: number;
   targetAtrMultiple: number;
   cooldownBarsAfterLoss: number;
+  newsPath: string;
   journalPath: string;
   modelPath: string;
 }

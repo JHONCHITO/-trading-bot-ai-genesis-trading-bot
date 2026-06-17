@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "backtest": "ts-node src/cli.ts --mode=backtest",
+    "walkforward": "ts-node src/cli.ts --mode=walkforward",
     "paper": "ts-node src/cli.ts --mode=paper",
     "analyze": "ts-node src/cli.ts --mode=analyze",
     "auto": "ts-node src/cli.ts --mode=auto",
