@@ -1,0 +1,23 @@
+{
+  "name": "trading-bot-ai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "backtest": "ts-node src/cli.ts --mode=backtest",
+    "paper": "ts-node src/cli.ts --mode=paper",
+    "analyze": "ts-node src/cli.ts --mode=analyze",
+    "auto": "ts-node src/cli.ts --mode=auto",
+    "binance:account": "ts-node src/cli.ts --mode=account --exchange=binance",
+    "binance:analyze": "ts-node src/cli.ts --mode=analyze --exchange=binance",
+    "binance:test-order": "ts-node src/cli.ts --mode=test-order --exchange=binance",
+    "bridge": "ts-node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.7",
+    "openai": "^4.104.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

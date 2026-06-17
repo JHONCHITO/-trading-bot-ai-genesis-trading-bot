@@ -1,0 +1,61 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { Mt5MarketSnapshot, SignalPackage } from "./types";
+
+function cleanJsonText(raw: string): string {
+  return raw.replace(/^\uFEFF/, "").trim();
+}
+
+async function readJsonFileRobust<T>(path: string): Promise<T | null> {
+  try {
+    const rawUtf8 = await readFile(path, "utf8");
+    const cleanUtf8 = cleanJsonText(rawUtf8);
+    if (!cleanUtf8) return null;
+    return JSON.parse(cleanUtf8) as T;
+  } catch {
+    try {
+      const rawUtf16 = await readFile(path, "utf16le");
+      const cleanUtf16 = cleanJsonText(rawUtf16);
+      if (!cleanUtf16) return null;
+      return JSON.parse(cleanUtf16) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
+export async function writeMt5SignalFile(path: string, signal: SignalPackage): Promise<void> {
+  await mkdir(dirname(path), { recursive: true });
+
+  await writeFile(
+    path,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        symbol: signal.symbol,
+        side: signal.side,
+        entry: signal.entry,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+        confidence: signal.confidence,
+        confluenceScore: signal.confluenceScore,
+        regime: signal.regime,
+        timeframeNotes: signal.timeframeNotes,
+        reasons: signal.reasons,
+        features: signal.features,
+        openaiReview: signal.openaiReview ?? undefined
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+export async function readMt5SignalFile(path: string): Promise<SignalPackage | null> {
+  return readJsonFileRobust<SignalPackage>(path);
+}
+
+export async function readMt5MarketFile(path: string): Promise<Mt5MarketSnapshot | null> {
+  return readJsonFileRobust<Mt5MarketSnapshot>(path);
+}
