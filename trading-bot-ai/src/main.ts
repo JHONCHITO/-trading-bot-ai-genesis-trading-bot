@@ -67,10 +67,20 @@ function snapshotToMarketContext(snapshot: Mt5MarketSnapshot): MarketContext | n
   if (!snapshot?.bars?.length) return null;
   if (snapshot.bars.length < config.trendSlow) return null;
 
+  const candles = snapshot.bars.map((bar) => ({
+    time: bar.timestamp ?? bar.time,
+    timestamp: bar.timestamp ?? bar.time,
+    open: bar.open,
+    high: bar.high,
+    low: bar.low,
+    close: bar.close,
+    volume: bar.volume,
+  }));
+
   return {
     symbol: snapshot.symbol,
     timestamp: snapshot.generatedAt,
-    candles: snapshot.bars,
+    candles,
     book: buildSyntheticBookFromBars(snapshot),
   };
 }

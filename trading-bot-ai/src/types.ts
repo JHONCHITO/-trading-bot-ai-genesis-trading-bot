@@ -142,6 +142,21 @@ export interface TradeRecord {
   modelScore: number;
 }
 
+export interface Position {
+  plan: PositionPlan;
+  entryFill: {
+    symbol: string;
+    side: "buy" | "sell";
+    units: number;
+    price: number;
+    commission: number;
+    timestamp: number;
+  };
+  entryIndex: number;
+  features: SignalFeatures;
+  modelScore: number;
+}
+
 export interface ModelState {
   weights: WeightVector;
   learningRate: number;
@@ -153,8 +168,19 @@ export interface ModelState {
   updatedAt: string;
 }
 
+export interface OpenAIReview {
+  enabled: boolean;
+  model: string;
+  verdict: "approve" | "caution" | "reject";
+  confidenceAdjustment: number;
+  summary: string;
+  keyRisks: string[];
+  suggestions: string[];
+}
+
 export interface BotConfig {
   initialCapital: number;
+  symbol: string;
   maxOpenPositions: number;
   riskPerTrade: number;
   maxPositionNotionalPct: number;
@@ -163,11 +189,14 @@ export interface BotConfig {
   maxSpreadPct: number;
   maxDailyLossPct: number;
   maxDrawdownPct: number;
+  atrLookback: number;
   trendFast: number;
   trendSlow: number;
   minVolumeRatio: number;
   stopAtrMultiple: number;
   targetAtrMultiple: number;
+  cooldownBarsAfterLoss: number;
+  journalPath: string;
   modelPath: string;
 }
 
@@ -191,11 +220,12 @@ export interface SignalPackage {
   confluenceScore: number;
   regime: Bias;
   timeframeNotes: string[];
-  openaiReview?: string;
+  openaiReview?: OpenAIReview;
 }
 
 export interface Mt5Bar {
   time: number;
+  timestamp?: number;
   open: number;
   high: number;
   low: number;

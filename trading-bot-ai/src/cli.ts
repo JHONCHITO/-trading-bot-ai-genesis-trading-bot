@@ -81,7 +81,13 @@ function parseArgs(argv: string[]): CliOptions {
 }
 
 function buildConfig(capital: number, symbol: string) {
-  return { ...DEFAULT_CONFIG, initialCapital: capital, symbol, modelPath: DEFAULT_CONFIG.modelPath, journalPath: DEFAULT_CONFIG.journalPath };
+  return {
+    ...DEFAULT_CONFIG,
+    initialCapital: capital,
+    symbol,
+    modelPath: DEFAULT_CONFIG.modelPath,
+    journalPath: DEFAULT_CONFIG.journalPath,
+  };
 }
 
 async function createBot(loadExisting: boolean, capital: number, symbol: string) {
@@ -115,7 +121,8 @@ async function loadMarketCandles(options: CliOptions): Promise<Candle[]> {
     const mt5Snapshot = await readMt5MarketFile(options.marketFile);
     if (mt5Snapshot?.bars?.length) {
       return mt5Snapshot.bars.map((bar) => ({
-        timestamp: bar.timestamp,
+        time: bar.timestamp ?? bar.time,
+        timestamp: bar.timestamp ?? bar.time,
         open: bar.open,
         high: bar.high,
         low: bar.low,

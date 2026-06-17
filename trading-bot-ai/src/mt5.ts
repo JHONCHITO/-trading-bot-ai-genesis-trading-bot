@@ -24,6 +24,17 @@ async function readJsonFileRobust<T>(path: string): Promise<T | null> {
   }
 }
 
+function normalizeMarketSnapshot(snapshot: Mt5MarketSnapshot): Mt5MarketSnapshot {
+  return {
+    ...snapshot,
+    bars: snapshot.bars.map((bar) => ({
+      ...bar,
+      time: bar.time ?? bar.timestamp ?? 0,
+      timestamp: bar.timestamp ?? bar.time ?? 0,
+    })),
+  };
+}
+
 export async function writeMt5SignalFile(path: string, signal: SignalPackage): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
 
@@ -57,5 +68,6 @@ export async function readMt5SignalFile(path: string): Promise<SignalPackage | n
 }
 
 export async function readMt5MarketFile(path: string): Promise<Mt5MarketSnapshot | null> {
-  return readJsonFileRobust<Mt5MarketSnapshot>(path);
+  const snapshot = await readJsonFileRobust<Mt5MarketSnapshot>(path);
+  return snapshot ? normalizeMarketSnapshot(snapshot) : null;
 }

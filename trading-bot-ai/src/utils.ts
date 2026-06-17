@@ -55,6 +55,7 @@ export function aggregateCandles(candles: Candle[], size: number): Candle[] {
     const slice = candles.slice(i, i + size);
     if (!slice.length) continue;
     out.push({
+      time: slice[slice.length - 1].timestamp,
       timestamp: slice[slice.length - 1].timestamp,
       open: slice[0].open,
       high: Math.max(...slice.map((c) => c.high)),

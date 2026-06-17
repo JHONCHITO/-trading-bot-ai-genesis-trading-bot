@@ -2,6 +2,7 @@ import { BotConfig, ModelState } from "./types";
 
 export const DEFAULT_CONFIG: BotConfig = {
   initialCapital: 10000,
+  symbol: "US30",
   maxOpenPositions: 1,
 
   riskPerTrade: 0.02,
@@ -13,6 +14,9 @@ export const DEFAULT_CONFIG: BotConfig = {
   maxDailyLossPct: 0.02,
   maxDrawdownPct: 0.10,
 
+  atrLookback: 14,
+  cooldownBarsAfterLoss: 3,
+
   trendFast: 20,
   trendSlow: 50,
 
@@ -20,6 +24,7 @@ export const DEFAULT_CONFIG: BotConfig = {
   stopAtrMultiple: 1.5,
   targetAtrMultiple: 2.0,
 
+  journalPath: "./state/journal.jsonl",
   modelPath: "./state/model.json"
 };
 

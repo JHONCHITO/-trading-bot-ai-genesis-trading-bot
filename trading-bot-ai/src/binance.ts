@@ -115,6 +115,7 @@ export class BinanceSpotClient {
     });
 
     return data.map((entry) => ({
+      time: Number(entry[6]),
       timestamp: Number(entry[6]),
       open: Number(entry[1]),
       high: Number(entry[2]),

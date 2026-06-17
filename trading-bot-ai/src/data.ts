@@ -26,7 +26,8 @@ export function generateSyntheticCandles(count = 240, startPrice = 100): Candle[
     const high = Math.max(open, close) + wick;
     const low = Math.max(0.5, Math.min(open, close) - wick);
     const volume = Math.round(950 + regime * 170 + Math.abs(noise) * 220 + r() * 140);
-    out.push({ timestamp: start + i * 60_000, open, high, low, close, volume });
+    const timestamp = start + i * 60_000;
+    out.push({ time: timestamp, timestamp, open, high, low, close, volume });
     prev = close;
   }
   return out;

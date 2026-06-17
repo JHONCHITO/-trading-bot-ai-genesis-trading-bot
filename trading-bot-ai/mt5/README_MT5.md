@@ -1,39 +1,53 @@
-# MT5 Bridge
+# TradingBotBridgeEA
 
-Este EA conecta `Trading Bot AI` con MetaTrader 5 usando un archivo de señal en los Common Files de MQL5.
+Este EA actua como puente profesional entre el motor Node.js y MetaTrader 5.
 
-## Archivo de señal
+## Que hace
 
-El bot escribe en:
+- lee `TradingBotAI\\signal.json` desde `FILE_COMMON`
+- valida confianza, confluencia, vigencia y riesgo
+- ejecuta ordenes de mercado
+- gestiona posiciones abiertas con:
+  - break-even
+  - trailing stop
+  - cierre parcial
+- exporta un `market.json` enriquecido para el motor externo
+- guarda estado y journal en Common Files
 
-`%APPDATA%/MetaQuotes/Terminal/Common/Files/TradingBotAI/signal.json`
+## Archivos principales
 
-El EA lee:
-
-`TradingBotAI\\signal.json`
-
-usando `FILE_COMMON`.
+- `TradingBotBridgeEA.mq5`
+- `TradingBotAI\\signal.json`
+- `TradingBotAI\\market.json`
+- `TradingBotAI\\state.json`
+- `TradingBotAI\\journal.jsonl`
 
 ## Instalacion
 
-1. Abre MetaEditor desde MT5.
-2. Crea un nuevo Expert Advisor llamado `TradingBotBridgeEA`.
-3. Pega el contenido de `TradingBotBridgeEA.mq5`.
-4. Compila.
-5. Adjunta el EA al chart de `US30` o al símbolo equivalente de tu broker.
-6. Activa `Algo Trading`.
+1. Abre MetaEditor.
+2. Crea o reemplaza el EA con `TradingBotBridgeEA.mq5`.
+3. Compila.
+4. Adjunta el EA al simbolo que quieras operar, por ejemplo `US30`.
+5. Activa `Algo Trading`.
 
-## Uso
+## Recomendacion de pruebas
 
-1. Ejecuta el bot con:
+Empieza en demo.
 
-```bash
-npm run analyze
-```
+Antes de ir a real, verifica:
 
-2. El bot actualizará la señal para MT5.
-3. El EA la leerá y ejecutará la orden si supera `MinConfidence`.
+- que el broker permita trading algoritimico
+- que el simbolo este habilitado
+- que el spread no este fuera de control
+- que las noticias no esten bloqueando la ventana de operacion
 
-## Nota
+## Importante
 
-Prueba primero en demo. Ajusta `Lots`, `MinConfidence` y el símbolo según la nomenclatura de tu broker.
+En tu captura aparece el mensaje `trading has been disabled on server`.
+Eso significa que el servidor/cuenta no esta permitiendo operar en ese momento.
+Aunque el EA sea correcto, no va a abrir posiciones hasta que esa restriccion desaparezca.
+
+## Compatibilidad
+
+El EA sigue leyendo el formato de `signal.json` que escribe el bot de Node.js.
+Si el bot envía `generatedAt` como ISO string o como tiempo numerico, el EA lo intenta interpretar.
