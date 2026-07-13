@@ -44,7 +44,7 @@ export function createInitialModelState(config: BotConfig): ModelState {
       spread: 0.08
     },
 
-    threshold: 0.47,
+    threshold: 0.30,
     riskMultiplier: 1.12,
     wins: 0,
     losses: 0,

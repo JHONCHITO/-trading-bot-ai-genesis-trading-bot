@@ -86,6 +86,21 @@ function edgeFromStats(stats?: TradeStats): number {
   return clamp((winRate - 0.5) * 0.2 + Math.tanh(pnlPerTrade / 1000) * 0.08 + confidenceBias, -0.12, 0.12);
 }
 
+function getEffectiveThreshold(state: ModelState): number {
+  const memory = ensureMemory(state);
+  const base = clamp(state.threshold, 0.22, 0.42);
+
+  if (memory.totalTrades === 0) {
+    return clamp(Math.min(base, 0.30), 0.24, 0.32);
+  }
+
+  const sampleBoost = clamp(Math.log10(memory.totalTrades + 1) * 0.01, 0, 0.03);
+  const winRate = memory.totalTrades > 0 ? memory.totalWins / memory.totalTrades : 0.5;
+  const performanceBoost = clamp((winRate - 0.5) * 0.08, -0.03, 0.03);
+
+  return clamp(base * 0.72 + 0.06 - sampleBoost - performanceBoost, 0.24, 0.38);
+}
+
 function deriveMemoryMultiplier(state: ModelState, side: "buy" | "sell", hour?: number): number {
   const memory = ensureMemory(state);
   const sideStats = memory.bySide[side];
@@ -156,9 +171,10 @@ export function scoreCandidate(
   const modelScore = clamp(dot(state.weights, candidate.features) * memoryMultiplier, 0, 1);
 
   const confidence = clamp(
-    modelScore * 0.92 +
-      candidate.features.trend * 0.04 +
-      candidate.features.flow * 0.02 +
+    modelScore * 0.88 +
+      candidate.features.trend * 0.06 +
+      candidate.features.flow * 0.03 +
+      candidate.features.breakout * 0.03 +
       Math.max(0, memoryMultiplier - 1) * 0.08,
     0,
     1,
@@ -184,6 +200,7 @@ export class AdaptiveCoach {
     modelScore: number;
   } {
     const diagnostics = [...snapshot.diagnostics];
+    const effectiveThreshold = getEffectiveThreshold(this.model);
 
     let best: (Signal & { modelScore: number }) | null = null;
 
@@ -199,10 +216,10 @@ export class AdaptiveCoach {
           3,
         )} conf=${confidence.toFixed(
           3,
-        )} thr=${this.model.threshold.toFixed(3)}`,
+        )} thr=${this.model.threshold.toFixed(3)} eff=${effectiveThreshold.toFixed(3)}`,
       );
 
-      if (confidence < this.model.threshold) continue;
+      if (confidence < effectiveThreshold) continue;
 
       const enriched = {
         ...candidate,
@@ -330,9 +347,15 @@ export async function loadModelState(
     const loaded = JSON.parse(
       await readFile(path, "utf8"),
     ) as ModelState;
+    const loadedTrades = (loaded.memory?.totalTrades ?? 0) || (loaded.wins + loaded.losses);
+    const normalizedThreshold =
+      loadedTrades === 0
+        ? Math.min(loaded.threshold ?? fallback.threshold, 0.3)
+        : clamp(loaded.threshold ?? fallback.threshold, 0.24, 0.42);
     return {
       ...fallback,
       ...loaded,
+      threshold: normalizedThreshold,
       memory: loaded.memory ?? fallback.memory,
       weights: loaded.weights ?? fallback.weights,
     };

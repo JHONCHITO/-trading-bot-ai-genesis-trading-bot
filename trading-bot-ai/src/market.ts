@@ -49,19 +49,38 @@ export function scoreDirection(
   const sweepHigh = m1.events.some((e) => e.type === "sweep_high");
   const bosUp = m1.events.some((e) => e.type === "bos_up");
   const bosDown = m1.events.some((e) => e.type === "bos_down");
-  const trend = side === "buy"
-    ? clamp((m15.trendStrength * 0.5 + m5.trendStrength * 0.35 + m1.trendStrength * 0.15) * (m15.bias === "bullish" ? 1 : 0.4), 0, 1)
-    : clamp((m15.trendStrength * 0.5 + m5.trendStrength * 0.35 + m1.trendStrength * 0.15) * (m15.bias === "bearish" ? 1 : 0.4), 0, 1);
+  const expectedBias = side === "buy" ? "bullish" : "bearish";
+  const alignedBias = m15.bias === expectedBias;
+  const microBias = m1.bias === expectedBias;
+  const trendBase = m15.trendStrength * 0.5 + m5.trendStrength * 0.35 + m1.trendStrength * 0.15;
+  const trend = clamp(
+    trendBase * (alignedBias ? 1 : 0.55) + (microBias ? 0.12 : 0) + (regime === expectedBias ? 0.08 : 0),
+    0,
+    1,
+  );
   const flow = side === "buy"
-    ? clamp(((imbalance + 1) / 2) * 0.7 + 1 * 0.3, 0, 1)
-    : clamp(((1 - imbalance) / 2) * 0.7 + 1 * 0.3, 0, 1);
+    ? clamp(0.4 + ((imbalance + 1) / 2) * 0.5, 0, 1)
+    : clamp(0.4 + ((1 - imbalance) / 2) * 0.5, 0, 1);
+  const breakoutDistance = side === "buy"
+    ? (structureResistance - latest.close) / atrValue
+    : (latest.close - structureSupport) / atrValue;
+  const breakoutProximity = clamp(1 - Math.abs(breakoutDistance) / 1.5, 0, 1);
   const breakout = side === "buy"
-    ? clamp((latest.close - structureResistance) / atrValue, 0, 1) + (bosUp ? 0.35 : 0)
-    : clamp((structureSupport - latest.close) / atrValue, 0, 1) + (bosDown ? 0.35 : 0);
-  const volume = clamp((volumeRatio - minVolumeRatio) / 0.8, 0, 1);
-  const volatility = clamp(1 - Math.abs((atrValue / latest.close) - 0.007) / 0.007, 0, 1);
-  const spread = clamp(1 - spreadPct / maxSpreadPct, 0, 1);
-  const confluence = clamp((trend + flow + breakout + volume + volatility + spread) / 6, 0, 1);
+    ? clamp(breakoutProximity * 0.55 + (latest.close >= structureResistance ? 0.2 : 0) + (bosUp ? 0.25 : 0) + (sweepLow ? 0.08 : 0), 0, 1)
+    : clamp(breakoutProximity * 0.55 + (latest.close <= structureSupport ? 0.2 : 0) + (bosDown ? 0.25 : 0) + (sweepHigh ? 0.08 : 0), 0, 1);
+  const volume = clamp(0.2 + (volumeRatio - minVolumeRatio) * 0.6, 0, 1);
+  const volatility = clamp(0.18 + (1 - Math.abs((atrValue / latest.close) - 0.007) / 0.007) * 0.7, 0, 1);
+  const spread = clamp(0.25 + (1 - spreadPct / maxSpreadPct) * 0.75, 0, 1);
+  const confluence = clamp(
+    trend * 0.35 +
+      flow * 0.15 +
+      breakout * 0.2 +
+      volume * 0.15 +
+      volatility * 0.1 +
+      spread * 0.05,
+    0,
+    1,
+  );
   const features: FeatureVector = { trend, flow, breakout, volume, volatility, spread };
   return {
     regime,
