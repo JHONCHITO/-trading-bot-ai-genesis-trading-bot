@@ -187,6 +187,15 @@ async function run(): Promise<void> {
 
   const portfolio = createPortfolioState();
   let processing = false;
+  let lastIdleLogAt = 0;
+
+  function logIdle(message: string): void {
+    const now = Date.now();
+    if (now - lastIdleLogAt >= 30000) {
+      console.log(message);
+      lastIdleLogAt = now;
+    }
+  }
 
   console.log("[BOT] Iniciado");
   console.log("[BOT] Leyendo mercado desde:", MT5_MARKET_PATH);
@@ -201,17 +210,18 @@ async function run(): Promise<void> {
     processing = true;
     try {
       if (!existsSync(MT5_MARKET_PATH)) {
-        console.log("[BOT] Aun no existe market.json en MT5 Common Files");
+        logIdle("[BOT] Esperando market.json en MT5 Common Files");
         return;
       }
 
       const snapshot = await readMt5MarketFile(MT5_MARKET_PATH);
       if (!snapshot) {
-        console.log("[BOT] No se pudo leer market.json");
+        logIdle("[BOT] market.json existe, pero aun no se pudo leer");
         return;
       }
 
       if (snapshot.generatedAt <= runtimeState.lastProcessedGeneratedAt) {
+        logIdle("[BOT] Sin snapshot nuevo. Esperando actualizacion desde MT5");
         return;
       }
 

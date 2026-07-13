@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Mt5MarketSnapshot, SignalPackage } from "./types";
 
@@ -38,30 +38,37 @@ function normalizeMarketSnapshot(snapshot: Mt5MarketSnapshot): Mt5MarketSnapshot
 export async function writeMt5SignalFile(path: string, signal: SignalPackage): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
 
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    signalId: signal.signalId,
+    action: signal.side.toUpperCase(),
+    symbol: signal.symbol,
+    side: signal.side,
+    entry: signal.entry,
+    stopLoss: signal.stopLoss,
+    takeProfit: signal.takeProfit,
+    confidence: signal.confidence,
+    confluenceScore: signal.confluenceScore,
+    modelScore: signal.confluenceScore,
+    regime: signal.regime,
+    timeframeNotes: signal.timeframeNotes,
+    reasons: signal.reasons,
+    features: signal.features,
+    openaiReview: signal.openaiReview ?? undefined,
+  };
+  const tempPath = `${path}.tmp`;
+
   await writeFile(
-    path,
-    JSON.stringify(
-      {
-        generatedAt: new Date().toISOString(),
-        signalId: signal.signalId,
-        symbol: signal.symbol,
-        side: signal.side,
-        entry: signal.entry,
-        stopLoss: signal.stopLoss,
-        takeProfit: signal.takeProfit,
-        confidence: signal.confidence,
-        confluenceScore: signal.confluenceScore,
-        regime: signal.regime,
-        timeframeNotes: signal.timeframeNotes,
-        reasons: signal.reasons,
-        features: signal.features,
-        openaiReview: signal.openaiReview ?? undefined
-      },
-      null,
-      2
-    ),
-    "utf8"
+    tempPath,
+    JSON.stringify(payload, null, 2),
+    "utf8",
   );
+
+  try {
+    await rename(tempPath, path);
+  } catch {
+    await writeFile(path, JSON.stringify(payload, null, 2), "utf8");
+  }
 }
 
 export async function readMt5SignalFile(path: string): Promise<SignalPackage | null> {
