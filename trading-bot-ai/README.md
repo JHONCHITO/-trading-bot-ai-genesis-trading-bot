@@ -16,6 +16,8 @@ Incluye:
 - backtesting,
 - walk-forward testing,
 - exportacion de senales para MT5.
+- memoria persistente del modelo con aprendizaje por lado y por hora.
+- estado de ejecucion para monitoreo y reanudacion.
 
 No depende de TOCHI Legal Suite.
 
@@ -55,6 +57,17 @@ Variables utiles:
 ## MT5
 
 El archivo `mt5/TradingBotBridgeEA.mq5` es un Expert Advisor que lee la senal y ejecuta la orden en MetaTrader 5. Abrelo en MetaEditor, compilalo y colocarlo en el grafico de `US30` o el simbolo equivalente de tu broker.
+La salida de senales incluye `signalId` estable para deduplicacion en MT5.
+
+## Estado y aprendizaje
+
+El bot guarda su estado en:
+
+- `state/model.json`
+- `state/runtime-state.json`
+- `state/journal.jsonl`
+
+`model.json` conserva la memoria adaptativa del motor. `runtime-state.json` te muestra el ultimo ciclo, la ultima decision, si hubo bloqueo por noticias y el ultimo error si aparecio alguno.
 
 ## Filosofia
 

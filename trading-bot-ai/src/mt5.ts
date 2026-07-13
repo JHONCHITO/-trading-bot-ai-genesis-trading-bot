@@ -43,6 +43,7 @@ export async function writeMt5SignalFile(path: string, signal: SignalPackage): P
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
+        signalId: signal.signalId,
         symbol: signal.symbol,
         side: signal.side,
         entry: signal.entry,

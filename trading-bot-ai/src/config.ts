@@ -44,11 +44,36 @@ export function createInitialModelState(config: BotConfig): ModelState {
       spread: 0.08
     },
 
-    threshold: 0.55,
+    threshold: 0.47,
     riskMultiplier: 1.12,
     wins: 0,
     losses: 0,
     netPnl: 0,
+    memory: {
+      updatedAt: new Date().toISOString(),
+      totalTrades: 0,
+      totalWins: 0,
+      totalLosses: 0,
+      totalPnl: 0,
+      bySide: {
+        buy: {
+          trades: 0,
+          wins: 0,
+          losses: 0,
+          pnl: 0,
+          avgConfidence: 0,
+        },
+        sell: {
+          trades: 0,
+          wins: 0,
+          losses: 0,
+          pnl: 0,
+          avgConfidence: 0,
+        },
+      },
+      byHour: {},
+      recentOutcomes: [],
+    },
     updatedAt: new Date().toISOString()
   };
 }

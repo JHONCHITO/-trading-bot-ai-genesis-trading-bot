@@ -21,6 +21,23 @@ export class RiskManager {
       return { allowed: false, reasons: [`Cooldown ${state.cooldownBars} bars`] };
     }
 
+    const localHour = new Date(context.timestamp).getHours();
+    const sessionStart = this.config.sessionStartHour;
+    const sessionEnd = this.config.sessionEndHour;
+    const inSession =
+      sessionStart === sessionEnd
+        ? true
+        : sessionStart < sessionEnd
+          ? localHour >= sessionStart && localHour <= sessionEnd
+          : localHour >= sessionStart || localHour <= sessionEnd;
+
+    if (!inSession) {
+      return {
+        allowed: false,
+        reasons: [`Outside trading session (${localHour}:00)`],
+      };
+    }
+
     if (gates?.newsBlocked) {
       return {
         allowed: false,
@@ -51,8 +68,9 @@ export class RiskManager {
       riskBudget / Math.max(stopDistance + this.config.commissionPerUnit, 1e-9)
     );
 
-    const unitsByNotional = Math.floor(
-      (state.equity * this.config.maxPositionNotionalPct) / Math.max(signal.entry, 1)
+    const unitsByNotional = Math.max(
+      1,
+      Math.floor((state.equity * this.config.maxPositionNotionalPct) / Math.max(signal.entry, 1)),
     );
 
     const units = Math.max(0, Math.min(unitsByRisk, unitsByNotional));
@@ -65,8 +83,8 @@ export class RiskManager {
           `Risk budget ${riskBudget.toFixed(2)}`,
           `Stop distance ${stopDistance.toFixed(2)}`,
           `Units by risk ${unitsByRisk}`,
-          `Units by notional ${unitsByNotional}`
-        ]
+          `Units by notional ${unitsByNotional}`,
+        ],
       };
     }
 
@@ -164,6 +182,7 @@ export class TradingBot {
     const snapshot = {
       candidates: [buy.candidate, sell.candidate],
       diagnostics: [`Market structure ready`, `Base candles: ${context.candles.length}`],
+      timestamp: context.timestamp,
     };
 
     const chosen = this.coach.select(snapshot);

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import crypto from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { AdaptiveCoach, loadModelState } from "./ai";
@@ -17,23 +18,35 @@ import {
 
 const config = DEFAULT_CONFIG;
 
-// RUTAS REALES DE MT5 COMMON FILES
-const MT5_MARKET_PATH =
-  "C:/Users/Jjtoc/AppData/Roaming/MetaQuotes/Terminal/Common/Files/TradingBotAI/market.json";
+function getCommonFilesPath(fileName: string): string {
+  const appData = process.env.APPDATA?.trim();
+  if (appData) {
+    return join(appData, "MetaQuotes", "Terminal", "Common", "Files", "TradingBotAI", fileName);
+  }
 
-const MT5_SIGNAL_PATH =
-  "C:/Users/Jjtoc/AppData/Roaming/MetaQuotes/Terminal/Common/Files/TradingBotAI/signal.json";
+  return join(process.cwd(), "state", fileName);
+}
 
-const NEWS_FILE_PATH = process.env.APPDATA?.trim()
-  ? join(process.env.APPDATA.trim(), "MetaQuotes", "Terminal", "Common", "Files", "TradingBotAI", "news.json")
-  : "./state/news.json";
+const MT5_MARKET_PATH = getCommonFilesPath("market.json");
+const MT5_SIGNAL_PATH = getCommonFilesPath("signal.json");
+const NEWS_FILE_PATH = getCommonFilesPath("news.json");
 
-// Estado local del bot
 const BOT_RUNTIME_STATE_PATH = "./state/runtime-state.json";
 
 interface RuntimeState {
   lastProcessedGeneratedAt: number;
+  lastUpdatedAt?: string;
+  lastDecision?: string;
+  lastReasons?: string[];
+  lastSignal?: SignalPackage | null;
+  lastNewsBlocked?: boolean;
+  lastNewsReasons?: string[];
+  modelThreshold?: number;
+  riskMultiplier?: number;
+  error?: string;
 }
+
+const SIGNAL_TOLERANCE = 1e-6;
 
 async function ensureParentDir(filePath: string): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
@@ -106,7 +119,26 @@ function decisionToSignalPackage(decision: BotDecision, context: MarketContext):
   if (!decision.signal) return null;
   if (decision.action !== "enter-long" && decision.action !== "enter-short") return null;
 
+  const confluenceScore = decision.signal.confidence;
+  const signalId = crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({
+        symbol: context.symbol,
+        side: decision.signal.side,
+        entry: Number(decision.signal.entry.toFixed(6)),
+        stopLoss: Number(decision.signal.stopLoss.toFixed(6)),
+        takeProfit: Number(decision.signal.takeProfit.toFixed(6)),
+        confidence: Number(decision.signal.confidence.toFixed(6)),
+        confluenceScore: Number(confluenceScore.toFixed(6)),
+        generatedAt: context.timestamp,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 24);
+
   return {
+    signalId,
     symbol: context.symbol,
     side: decision.signal.side,
     entry: decision.signal.entry,
@@ -115,7 +147,7 @@ function decisionToSignalPackage(decision: BotDecision, context: MarketContext):
     confidence: decision.signal.confidence,
     reasons: decision.signal.reasons,
     features: decision.signal.features,
-    confluenceScore: decision.modelScore ?? decision.signal.confidence,
+    confluenceScore,
     regime: decision.signal.side === "buy" ? "bullish" : "bearish",
     timeframeNotes: decision.reasons,
     openaiReview: undefined,
@@ -125,12 +157,21 @@ function decisionToSignalPackage(decision: BotDecision, context: MarketContext):
 function isSameSignal(a: SignalPackage | null, b: SignalPackage | null): boolean {
   if (!a || !b) return false;
 
+  if (a.signalId && b.signalId) {
+    return a.signalId === b.signalId;
+  }
+
+  const nearlyEqual = (left: number, right: number): boolean =>
+    Math.abs(left - right) <= SIGNAL_TOLERANCE;
+
   return (
     a.symbol === b.symbol &&
     a.side === b.side &&
-    a.entry === b.entry &&
-    a.stopLoss === b.stopLoss &&
-    a.takeProfit === b.takeProfit
+    nearlyEqual(a.entry, b.entry) &&
+    nearlyEqual(a.stopLoss, b.stopLoss) &&
+    nearlyEqual(a.takeProfit, b.takeProfit) &&
+    nearlyEqual(a.confidence, b.confidence) &&
+    nearlyEqual(a.confluenceScore, b.confluenceScore)
   );
 }
 
@@ -145,12 +186,19 @@ async function run(): Promise<void> {
   const bot = new TradingBot(config, coach, risk, broker);
 
   const portfolio = createPortfolioState();
+  let processing = false;
 
   console.log("[BOT] Iniciado");
   console.log("[BOT] Leyendo mercado desde:", MT5_MARKET_PATH);
   console.log("[BOT] Escribiendo señales en:", MT5_SIGNAL_PATH);
 
   setInterval(async () => {
+    if (processing) {
+      console.log("[BOT] Ciclo anterior aun en curso, omitiendo este tick");
+      return;
+    }
+
+    processing = true;
     try {
       if (!existsSync(MT5_MARKET_PATH)) {
         console.log("[BOT] Aun no existe market.json en MT5 Common Files");
@@ -208,9 +256,23 @@ async function run(): Promise<void> {
       }
 
       runtimeState.lastProcessedGeneratedAt = snapshot.generatedAt;
+      runtimeState.lastUpdatedAt = new Date().toISOString();
+      runtimeState.lastDecision = decision.action;
+      runtimeState.lastReasons = decision.reasons.slice(0, 10);
+      runtimeState.lastSignal = nextSignal;
+      runtimeState.lastNewsBlocked = newsCheck.blocked;
+      runtimeState.lastNewsReasons = newsCheck.reasons.slice(0, 10);
+      runtimeState.modelThreshold = bot.getModelState().threshold;
+      runtimeState.riskMultiplier = bot.getModelState().riskMultiplier;
+      delete runtimeState.error;
       await saveRuntimeState(runtimeState);
     } catch (error) {
       console.error("[BOT ERROR]", error);
+      runtimeState.error = error instanceof Error ? error.message : String(error);
+      runtimeState.lastUpdatedAt = new Date().toISOString();
+      await saveRuntimeState(runtimeState);
+    } finally {
+      processing = false;
     }
   }, 2000);
 }

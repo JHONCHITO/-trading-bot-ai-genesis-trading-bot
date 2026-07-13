@@ -224,7 +224,35 @@ export interface ModelState {
   wins: number;
   losses: number;
   netPnl: number;
+  memory: MarketMemory;
   updatedAt: string;
+}
+
+export interface TradeStats {
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  avgConfidence: number;
+}
+
+export interface MarketMemory {
+  updatedAt: string;
+  totalTrades: number;
+  totalWins: number;
+  totalLosses: number;
+  totalPnl: number;
+  bySide: {
+    buy: TradeStats;
+    sell: TradeStats;
+  };
+  byHour: Record<string, TradeStats>;
+  recentOutcomes: {
+    pnl: number;
+    confidence: number;
+    side: "buy" | "sell";
+    timestamp: number;
+  }[];
 }
 
 export interface OpenAIReview {
@@ -271,6 +299,7 @@ export interface BotDecision {
 }
 
 export interface SignalPackage {
+  signalId?: string;
   symbol: string;
   side: "buy" | "sell";
   entry: number;
