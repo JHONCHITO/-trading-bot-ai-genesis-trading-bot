@@ -23,8 +23,8 @@ export const DEFAULT_CONFIG: BotConfig = {
   trendSlow: 50,
 
   minVolumeRatio: 1.0,
-  stopAtrMultiple: 1.5,
-  targetAtrMultiple: 2.0,
+  stopAtrMultiple: 0.8,
+  targetAtrMultiple: 1.5,
 
   newsPath: "./state/news.json",
   journalPath: "./state/journal.jsonl",

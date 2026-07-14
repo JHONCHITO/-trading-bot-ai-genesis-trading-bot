@@ -27,8 +27,8 @@ input int    TimerSeconds             = 5;
 input int    MarketBars               = 400;
 input int    MaxSignalAgeMinutes      = 90;
 input int    DeviationPoints          = 50;
-input double MinConfidence            = 0.55;
-input double MinConfluence            = 0.55;
+input double MinConfidence            = 0.40;
+input double MinConfluence            = 0.40;
 input bool   ExportMarketData         = true;
 input bool   UseNewsFilter            = true;
 input int    NewsBeforeMinutes        = 30;
@@ -462,6 +462,9 @@ void EnsureStateInitialized()
 
    if(equity <= 0.0)
    {
+      g_state.dayStartEquity = 0.0;
+      g_state.peakEquity = 0.0;
+      g_state.dayPnL = 0.0;
       g_state.halted = false;
       g_state.haltReason = "";
       return;
@@ -1530,6 +1533,7 @@ bool ProcessSignal()
       g_state.blockedToday++;
       g_state.lastSignalHash = hash;
       LogJournal("blocked", reason, raw);
+      Print("Signal blocked: ", reason);
       return false;
    }
 
@@ -1585,6 +1589,15 @@ void RefreshBotHealth()
 {
    EnsureStateInitialized();
    const double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   if(equity <= 0.0)
+   {
+      g_state.halted = false;
+      g_state.haltReason = "";
+      g_state.dayPnL = 0.0;
+      return;
+   }
+
    g_state.peakEquity = MathMax(g_state.peakEquity, equity);
    g_state.dayPnL = equity - g_state.dayStartEquity;
 
