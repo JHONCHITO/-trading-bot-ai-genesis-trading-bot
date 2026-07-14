@@ -447,8 +447,8 @@ void ResetStateForNewDay()
 {
    const double equity = AccountInfoDouble(ACCOUNT_EQUITY);
    g_state.dayStart = TodayKey();
-   g_state.dayStartEquity = equity;
-   g_state.peakEquity = MathMax(g_state.peakEquity, equity);
+   g_state.dayStartEquity = equity > 0.0 ? equity : g_state.dayStartEquity;
+   g_state.peakEquity = equity > 0.0 ? MathMax(g_state.peakEquity, equity) : g_state.peakEquity;
    g_state.dayPnL = 0.0;
    g_state.tradesToday = 0;
    g_state.blockedToday = 0;
@@ -458,6 +458,15 @@ void ResetStateForNewDay()
 
 void EnsureStateInitialized()
 {
+   const double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+
+   if(equity <= 0.0)
+   {
+      g_state.halted = false;
+      g_state.haltReason = "";
+      return;
+   }
+
    if(g_state.dayStart == 0)
       ResetStateForNewDay();
 
@@ -465,7 +474,12 @@ void EnsureStateInitialized()
    if(g_state.dayStart != today)
       ResetStateForNewDay();
 
-   const double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   if(g_state.dayStartEquity <= 0.0)
+      g_state.dayStartEquity = equity;
+
+   if(g_state.peakEquity <= 0.0)
+      g_state.peakEquity = equity;
+
    g_state.peakEquity = MathMax(g_state.peakEquity, equity);
    g_state.dayPnL = equity - g_state.dayStartEquity;
 
